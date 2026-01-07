@@ -179,6 +179,7 @@
     <string-array name="select_decode">
         <item>Soft</item>
         <item>Hard</item>
+        <item>Auto</item>
     </string-array>
 
     <string-array name="select_render">
@@ -253,5 +254,12 @@
 
     <!-- History Visible -->
     <string name="setting_history_visible">显示首页历史</string>
+
+    <!-- Cast and Crew -->
+    <string name="cast_works_title_actor">%s 的作品</string>
+    <string name="cast_works_title_director">导演 %s 的作品</string>
+    <string name="cast_empty_hint">暂无相关作品</string>
+    <string name="cast_search_error">搜索失败，请重试</string>
+    <string name="cast_name_invalid">演职人员名字无效</string>
 
 </resources>

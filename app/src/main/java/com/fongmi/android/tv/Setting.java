@@ -66,7 +66,7 @@ public class Setting {
     }
 
     public static int getDecode() {
-        return Prefers.getInt("decode", Players.HARD);
+        return Prefers.getInt("decode", Players.AUTO);
     }
 
     public static void putDecode(int decode) {

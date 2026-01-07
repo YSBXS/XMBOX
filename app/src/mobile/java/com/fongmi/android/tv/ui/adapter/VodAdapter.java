@@ -46,7 +46,7 @@ public class VodAdapter extends RecyclerView.Adapter<BaseVodHolder> {
     }
 
     public void addAll(List<Vod> items) {
-        int position = mItems.size() + 1;
+        int position = mItems.size();
         mItems.addAll(items);
         notifyItemRangeInserted(position, items.size());
     }

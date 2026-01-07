@@ -173,6 +173,7 @@
     <string-array name="select_decode">
         <item>軟解</item>
         <item>硬解</item>
+        <item>自動</item>
     </string-array>
 
     <string-array name="select_quality">

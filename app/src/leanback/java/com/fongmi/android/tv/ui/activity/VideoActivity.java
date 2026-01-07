@@ -39,6 +39,7 @@ import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.Setting;
 import com.fongmi.android.tv.api.config.VodConfig;
+import com.fongmi.android.tv.bean.CastMember;
 import com.fongmi.android.tv.bean.Danmaku;
 import com.fongmi.android.tv.bean.Episode;
 import com.fongmi.android.tv.bean.Flag;
@@ -78,6 +79,7 @@ import com.fongmi.android.tv.ui.presenter.QuickPresenter;
 import com.fongmi.android.tv.utils.Clock;
 import com.fongmi.android.tv.utils.FileChooser;
 import com.fongmi.android.tv.utils.ImgUtil;
+import com.fongmi.android.tv.utils.CastUtil;
 import com.fongmi.android.tv.utils.KeyUtil;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
@@ -483,11 +485,25 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
     }
 
     private void setText(TextView view, int resId, String text) {
-        view.setText(getSpan(resId, text), TextView.BufferType.SPANNABLE);
-        view.setVisibility(text.isEmpty() ? View.GONE : View.VISIBLE);
-        view.setLinkTextColor(ContextCompat.getColor(view.getContext(), R.color.primary));
-        CustomMovement.bind(view);
-        view.setTag(text);
+        // 检查是否是演员或导演字段
+        boolean isActor = view.getId() == R.id.actor;
+        boolean isDirector = view.getId() == R.id.director;
+        
+        if (isActor || isDirector) {
+            // 使用 CastUtil 处理演员/导演点击
+            CastMember.CastType type = isActor ? CastMember.CastType.ACTOR : CastMember.CastType.DIRECTOR;
+            view.setText(CastUtil.getClickableSpan(this, resId, text, type), TextView.BufferType.SPANNABLE);
+            view.setVisibility(text.isEmpty() ? View.GONE : View.VISIBLE);
+            view.setMovementMethod(android.text.method.LinkMovementMethod.getInstance());
+            view.setLinkTextColor(ContextCompat.getColor(view.getContext(), R.color.primary));
+            view.setTag(text);
+        } else {
+            view.setText(getSpan(resId, text), TextView.BufferType.SPANNABLE);
+            view.setVisibility(text.isEmpty() ? View.GONE : View.VISIBLE);
+            view.setLinkTextColor(ContextCompat.getColor(view.getContext(), R.color.primary));
+            CustomMovement.bind(view);
+            view.setTag(text);
+        }
     }
 
     private SpannableStringBuilder getSpan(int resId, String text) {

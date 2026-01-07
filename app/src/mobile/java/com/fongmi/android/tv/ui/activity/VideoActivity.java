@@ -20,8 +20,10 @@ import android.provider.Settings;
 import android.text.Html;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
+import android.text.TextPaint;
 import android.text.TextUtils;
 import android.text.format.DateFormat;
+import android.text.method.LinkMovementMethod;
 import android.text.style.ClickableSpan;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
@@ -52,6 +54,7 @@ import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.Setting;
 import com.fongmi.android.tv.api.config.VodConfig;
+import com.fongmi.android.tv.bean.CastMember;
 import com.fongmi.android.tv.bean.CastVideo;
 import com.fongmi.android.tv.bean.Danmaku;
 import com.fongmi.android.tv.bean.Episode;
@@ -95,6 +98,7 @@ import com.fongmi.android.tv.ui.dialog.InfoDialog;
 import com.fongmi.android.tv.ui.dialog.ReceiveDialog;
 import com.fongmi.android.tv.ui.dialog.SubtitleDialog;
 import com.fongmi.android.tv.ui.dialog.TrackDialog;
+import com.fongmi.android.tv.utils.CastUtil;
 import com.fongmi.android.tv.utils.Clock;
 import com.fongmi.android.tv.utils.FileChooser;
 import com.fongmi.android.tv.utils.ImgUtil;
@@ -146,6 +150,7 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
     private List<String> mBroken;
     private History mHistory;
     private Players mPlayers;
+    private Vod mCurrentVod;  // 保存当前视频对象，用于演职人员跳转
     private boolean fullscreen;
     private boolean initAuto;
     private boolean autoMode;
@@ -456,10 +461,8 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
     protected void initEvent() {
         mBinding.name.setOnClickListener(view -> onName());
         mBinding.more.setOnClickListener(view -> onMore());
-        mBinding.actor.setOnClickListener(view -> onActor());
         mBinding.content.setOnClickListener(view -> onContent());
         mBinding.reverse.setOnClickListener(view -> onReverse());
-        mBinding.director.setOnClickListener(view -> onDirector());
         mBinding.name.setOnLongClickListener(view -> onChange());
         mBinding.content.setOnLongClickListener(view -> onCopy());
         mBinding.control.cast.setOnClickListener(view -> onCast());
@@ -614,14 +617,15 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
     }
 
     private void setDetail(Vod item) {
+        mCurrentVod = item;  // 保存当前视频对象
         mBinding.progressLayout.showContent();
         mBinding.video.setTag(item.getVodPic(getPic()));
         mBinding.name.setText(item.getVodName(getName()));
         setText(mBinding.remark, 0, item.getVodRemarks());
         setText(mBinding.site, R.string.detail_site, getSite().getName());
         setText(mBinding.content, 0, Html.fromHtml(item.getVodContent()).toString());
-        setText(mBinding.actor, R.string.detail_actor, Html.fromHtml(item.getVodActor()).toString());
-        setText(mBinding.director, R.string.detail_director, Html.fromHtml(item.getVodDirector()).toString());
+        setActorText(mBinding.actor, R.string.detail_actor, item.getVodActor(), CastMember.CastType.ACTOR);
+        setActorText(mBinding.director, R.string.detail_director, item.getVodDirector(), CastMember.CastType.DIRECTOR);
         mBinding.contentLayout.setVisibility(mBinding.content.getVisibility());
         mFlagAdapter.addAll(item.getVodFlags());
         setOther(mBinding.other, item);
@@ -630,6 +634,69 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
         checkHistory(item);
         checkFlag(item);
         checkKeepImg();
+    }
+    
+    /**
+     * 设置演员/导演文本，每个名字都可点击
+     */
+    private void setActorText(TextView view, int resId, String text, CastMember.CastType type) {
+        if (text == null || text.isEmpty()) {
+            view.setVisibility(View.GONE);
+            return;
+        }
+        
+        // 解析演员/导演列表
+        String cleanText = Html.fromHtml(text).toString();
+        List<CastMember> members = CastUtil.parseCastMembers(cleanText, type);
+        
+        if (members.isEmpty()) {
+            view.setVisibility(View.GONE);
+            return;
+        }
+        
+        // 构建带标签的文本
+        String label = getString(resId, "");
+        SpannableStringBuilder span = new SpannableStringBuilder(label);
+        
+        // 添加每个演员/导演名字，用逗号分隔
+        for (int i = 0; i < members.size(); i++) {
+            CastMember member = members.get(i);
+            int start = span.length();
+            span.append(member.getName());
+            int end = span.length();
+            
+            // 设置点击事件
+            span.setSpan(getCastClickSpan(member), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            
+            // 添加分隔符
+            if (i < members.size() - 1) {
+                span.append(" / ");
+            }
+        }
+        
+        view.setText(span, TextView.BufferType.SPANNABLE);
+        view.setVisibility(View.VISIBLE);
+        view.setLinkTextColor(MDColor.YELLOW_500);
+        view.setMovementMethod(LinkMovementMethod.getInstance());
+        view.setMaxLines(Integer.MAX_VALUE);  // 完全显示，不折叠
+    }
+    
+    /**
+     * 创建演员/导演点击事件
+     */
+    private ClickableSpan getCastClickSpan(CastMember member) {
+        return new ClickableSpan() {
+            @Override
+            public void onClick(@NonNull View view) {
+                CastWorksActivity.start(VideoActivity.this, member.getName(), member.getType());
+            }
+            
+            @Override
+            public void updateDrawState(@NonNull TextPaint ds) {
+                super.updateDrawState(ds);
+                ds.setUnderlineText(false);  // 移除下划线
+            }
+        };
     }
 
     private void setText(TextView view, int resId, String text) {
@@ -786,14 +853,6 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
 
     private void onMore() {
         EpisodeGridDialog.create().reverse(mHistory.isRevSort()).episodes(mEpisodeAdapter.getItems()).show(this);
-    }
-
-    private void onActor() {
-        mBinding.actor.setMaxLines(mBinding.actor.getMaxLines() == 1 ? Integer.MAX_VALUE : 1);
-    }
-
-    private void onDirector() {
-        mBinding.director.setMaxLines(mBinding.director.getMaxLines() == 1 ? Integer.MAX_VALUE : 1);
     }
 
     private void onContent() {

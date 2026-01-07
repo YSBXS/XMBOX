@@ -73,6 +73,7 @@ public class Players implements Player.Listener, ParseCallback {
 
     public static final int SOFT = 0;
     public static final int HARD = 1;
+    public static final int AUTO = 2;
 
     private final StringBuilder builder;
     private final Formatter formatter;
@@ -126,7 +127,21 @@ public class Players implements Player.Listener, ParseCallback {
     }
 
     private void setPlayer(PlayerView view) {
-        exoPlayer = new ExoPlayer.Builder(App.get()).setLoadControl(ExoUtil.buildLoadControl()).setTrackSelector(ExoUtil.buildTrackSelector()).setRenderersFactory(ExoUtil.buildRenderersFactory(isHard() ? EXTENSION_RENDERER_MODE_ON : EXTENSION_RENDERER_MODE_PREFER)).setMediaSourceFactory(ExoUtil.buildMediaSourceFactory()).build();
+        int renderMode;
+        if (decode == HARD) {
+            renderMode = EXTENSION_RENDERER_MODE_ON; // 强制硬解
+        } else if (decode == SOFT) {
+            renderMode = EXTENSION_RENDERER_MODE_PREFER; // 强制软解
+        } else {
+            renderMode = androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF; // 自动选择
+        }
+        
+        exoPlayer = new ExoPlayer.Builder(App.get())
+            .setLoadControl(ExoUtil.buildLoadControl())
+            .setTrackSelector(ExoUtil.buildTrackSelector())
+            .setRenderersFactory(ExoUtil.buildRenderersFactory(renderMode))
+            .setMediaSourceFactory(ExoUtil.buildMediaSourceFactory())
+            .build();
         exoPlayer.setAudioAttributes(AudioAttributes.DEFAULT, true);
         exoPlayer.addAnalyticsListener(new EventLogger());
         exoPlayer.setHandleAudioBecomingNoisy(true);
@@ -327,7 +342,10 @@ public class Players implements Player.Listener, ParseCallback {
     }
 
     public void toggleDecode() {
-        decode = isHard() ? SOFT : HARD;
+        // 循环切换：硬解 -> 软解 -> 自动 -> 硬解
+        if (decode == HARD) decode = SOFT;
+        else if (decode == SOFT) decode = AUTO;
+        else decode = HARD;
         Setting.putDecode(decode);
         init(view);
     }
